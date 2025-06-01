@@ -1,64 +1,138 @@
 <!DOCTYPE html>
-<html lang="de">
+<html lang="de" data-bs-theme="light">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>TVBot – Deutsches TV-Programm</title>
-
-  <!-- Bootstrap CSS -->
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-  <!-- Tom Select CSS -->
-  <link href="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/css/tom-select.bootstrap5.min.css" rel="stylesheet" />
-  <!-- Bootstrap Icons -->
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
-  <link rel="stylesheet" href="style.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TVBot - TV Programm Guide</title>
+    <meta name="description" content="Einfacher TV-Guide für deutsche und internationale Sender">
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.11.1/font/bootstrap-icons.min.css" rel="stylesheet">
+    
+    <!-- Custom CSS -->
+    <link href="style.css" rel="stylesheet">
 </head>
-<body class="bg-light text-dark">
+<body class="theme-transition">
+    <!-- Header -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary mb-4">
+        <div class="container">
+            <a class="navbar-brand fw-bold" href="#">
+                <i class="bi bi-tv"></i> TVBot
+            </a>
+            
+            <div class="navbar-nav ms-auto">
+                <button id="themeToggle" class="btn btn-outline-light me-2" title="Theme wechseln">
+                    <i class="bi bi-moon-fill"></i>
+                </button>
+                <button id="shareButton" class="btn btn-outline-light" title="Link teilen">
+                    <i class="bi bi-share"></i>
+                </button>
+            </div>
+        </div>
+    </nav>
 
-<div class="container py-5">
-  <div class="d-flex justify-content-between align-items-center mb-4">
-    <h1>📺 TVBot – Deutsches TV-Programm</h1>
-    <button id="toggleDarkMode" class="btn btn-outline-secondary">
-      <i class="bi bi-moon-fill"></i> Dark Mode
-    </button>
-  </div>
+    <div class="container">
+        <!-- Sender Selection -->
+        <div class="card mb-4 theme-transition">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-search"></i> Sender auswählen</h5>
+            </div>
+            <div class="card-body">
+                <div class="position-relative">
+                    <input type="text" id="senderSearch" class="form-control" 
+                           placeholder="Sender suchen (z.B. BBC, NBC, CNN...)">
+                    <div id="searchDropdown" class="dropdown-menu search-dropdown w-100"></div>
+                </div>
+                
+                <div id="selectedSenders" class="mt-3">
+                    <small class="text-muted">Ausgewählte Sender:</small>
+                    <div id="senderTags" class="mt-2"></div>
+                </div>
+            </div>
+        </div>
 
-  <label for="senderSelect" class="form-label">🎯 Senderauswahl</label>
-  <select id="senderSelect" multiple placeholder="Sender wählen..."></select>
+        <!-- Time Navigation -->
+        <div class="time-nav text-white text-center">
+            <h6 class="mb-3">Programmzeiten</h6>
+            <div class="btn-group" role="group">
+                <button type="button" class="btn btn-outline-light time-btn" data-time="now">
+                    <i class="bi bi-clock"></i> Jetzt
+                </button>
+                <button type="button" class="btn btn-outline-light time-btn" data-time="2015">
+                    <i class="bi bi-star"></i> 20:15 Uhr
+                </button>
+                <button type="button" class="btn btn-outline-light time-btn" data-time="custom">
+                    <i class="bi bi-calendar-event"></i> Andere Zeit
+                </button>
+            </div>
+        </div>
 
-  <button id="shareBtn" class="btn btn-outline-primary mt-3">🔗 Link teilen</button>
-  <small id="shareStatus" class="text-muted d-block mb-3"></small>
+        <!-- Loading Spinner -->
+        <div class="text-center loading-spinner">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Lädt...</span>
+            </div>
+            <p class="mt-2 text-muted">Programmdaten werden geladen...</p>
+        </div>
 
-  <h2 class="mt-4">🔴 Was läuft jetzt?</h2>
-  <table class="table table-striped" id="nowTable">
-    <thead>
-      <tr>
-        <th>Sender</th>
-        <th>Sendung</th>
-        <th>Startzeit</th>
-      </tr>
-    </thead>
-    <tbody></tbody>
-  </table>
+        <!-- Program Table -->
+        <div id="programContent" class="content">
+            <div class="card theme-transition">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0" id="programTitle">
+                        <i class="bi bi-tv"></i> TV Programm
+                    </h5>
+                    <small class="text-muted" id="lastUpdate"></small>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0 program-table">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>Sender</th>
+                                    <th>Sendung</th>
+                                    <th>Zeit</th>
+                                    <th>Genre</th>
+                                </tr>
+                            </thead>
+                            <tbody id="programTableBody">
+                                <tr>
+                                    <td colspan="4" class="text-center text-muted py-4">
+                                        <i class="bi bi-info-circle"></i> 
+                                        Wählen Sie Sender aus, um das Programm anzuzeigen
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
 
-  <h2 class="mt-5">🌃 Heute um 20:15 Uhr</h2>
-  <table class="table table-striped" id="primeTable">
-    <thead>
-      <tr>
-        <th>Sender</th>
-        <th>Sendung</th>
-        <th>Startzeit</th>
-      </tr>
-    </thead>
-    <tbody></tbody>
-  </table>
-</div>
+        <!-- Info Alert -->
+        <div class="alert alert-info mt-4" role="alert">
+            <i class="bi bi-info-circle"></i>
+            <strong>Demo-Version:</strong> Diese Version nutzt die TVMaze API mit internationalen Sendern. 
+            Für deutsche TV-Daten kann eine spezialisierte deutsche TV-API integriert werden.
+        </div>
+    </div>
 
-<!-- Bootstrap JS Bundle -->
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-<!-- Tom Select JS -->
-<script src="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/js/tom-select.complete.min.js"></script>
-<script src="script.js"></script>
+    <!-- Share Success Toast -->
+    <div id="shareToast" class="toast share-success" role="alert">
+        <div class="toast-header">
+            <i class="bi bi-check-circle-fill text-success me-2"></i>
+            <strong class="me-auto">Erfolgreich!</strong>
+        </div>
+        <div class="toast-body">
+            Link wurde in die Zwischenablage kopiert.
+        </div>
+    </div>
 
+    <!-- Bootstrap JS -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Custom JavaScript -->
+    <script src="script.js"></script>
 </body>
 </html>
