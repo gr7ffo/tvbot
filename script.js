@@ -1,5 +1,6 @@
 let allEntries = [];
 let senderSelect = document.getElementById('senderSelect');
+let isDarkMode = false;
 
 function fetchTVData() {
   fetch('https://api.tvmaze.com/schedule?country=DE')
@@ -84,6 +85,14 @@ document.getElementById('shareBtn').addEventListener('click', () => {
     status.textContent = '🔗 Link kopiert!';
     setTimeout(() => { status.textContent = ''; }, 3000);
   });
+});
+
+document.getElementById('toggleDarkMode').addEventListener('click', () => {
+  isDarkMode = !isDarkMode;
+  document.body.classList.toggle('bg-light', !isDarkMode);
+  document.body.classList.toggle('bg-dark', isDarkMode);
+  document.body.classList.toggle('text-dark', !isDarkMode);
+  document.body.classList.toggle('text-light', isDarkMode);
 });
 
 fetchTVData();
