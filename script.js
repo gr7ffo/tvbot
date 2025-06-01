@@ -5,13 +5,22 @@ function fetchTVData() {
   fetch('https://api.tvmaze.com/schedule?country=DE')
     .then(res => res.json())
     .then(data => {
+      if (!data || data.length === 0) {
+        console.error("Keine Daten von der API erhalten.");
+        return;
+      }
+      
       allEntries = data;
-      const senders = [...new Set(
-        data.map(e => e.show.network?.name).filter(Boolean)
-      )].sort();
-
+      const senders = [...new Set(data.map(e => e.show.network?.name).filter(Boolean))].sort();
+      
+      if (senders.length === 0) {
+        console.error("Keine Senderdaten verfügbar.");
+        return;
+      }
+      
       initTomSelect(senders);
-    });
+    })
+    .catch(err => console.error("Fehler beim Abrufen der Daten:", err));
 }
 
 function initTomSelect(senders) {
@@ -23,6 +32,8 @@ function initTomSelect(senders) {
     plugins: ['remove_button'],
     persist: false,
     create: false,
+    maxOptions: 50, // Maximale Anzahl der angezeigten Optionen
+    filter: true, // Filter für Autovervollständigung aktivieren
     onChange: updateTables,
   });
 
