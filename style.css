@@ -1,0 +1,21 @@
+body {
+  font-family: system-ui, sans-serif;
+}
+
+.dark-mode {
+  background-color: #121212 !important;
+  color: #e0e0e0 !important;
+}
+
+.dark-mode .table {
+  color: #fff;
+}
+
+.dark-mode .table-striped tbody tr:nth-of-type(odd) {
+  background-color: #1e1e1e;
+}
+
+.dark-mode .btn-outline-dark {
+  border-color: #ccc;
+  color: #ccc;
+}

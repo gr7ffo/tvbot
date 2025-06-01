@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>TVBot – Deutsches TV-Programm</title>
+
+  <!-- Bootstrap & Tom Select CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.bootstrap5.min.css" rel="stylesheet">
+
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="bg-light">
+
+<div class="container py-5">
+  <h1 class="mb-4">📺 TVBot – Deutsches TV-Programm</h1>
+
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <label for="senderSelect" class="form-label mb-0">🎯 Senderauswahl</label>
+    <button id="toggleDarkMode" class="btn btn-outline-dark btn-sm">🌗 Dark Mode</button>
+  </div>
+
+  <select id="senderSelect" multiple placeholder="Sender wählen..."></select>
+  <button id="shareBtn" class="btn btn-outline-primary mt-3">🔗 Link teilen</button>
+  <small id="shareStatus" class="text-muted d-block mb-3"></small>
+
+  <h2 class="mt-4">🔴 Was läuft jetzt?</h2>
+  <table class="table table-striped" id="nowTable">
+    <thead>
+      <tr>
+        <th>Sender</th>
+        <th>Sendung</th>
+        <th>Startzeit</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <h2 class="mt-5">🌃 Heute um 20:15 Uhr</h2>
+  <table class="table table-striped" id="primeTable">
+    <thead>
+      <tr>
+        <th>Sender</th>
+        <th>Sendung</th>
+        <th>Startzeit</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+</div>
+
+<!-- Scripts -->
+<script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>
+<script src="script.js"></script>
+
+</body>
+</html>
