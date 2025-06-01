@@ -1,3 +1,11 @@
 body {
   font-family: system-ui, sans-serif;
 }
+
+body.bg-dark {
+  background-color: #121212 !important;
+}
+
+.table td, .table th {
+  vertical-align: middle;
+}

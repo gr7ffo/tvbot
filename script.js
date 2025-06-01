@@ -1,98 +1,84 @@
 let allEntries = [];
-let senderSelect = document.getElementById('senderSelect');
-let isDarkMode = false;
+let tomSelect = null;
 
 function fetchTVData() {
   fetch('https://api.tvmaze.com/schedule?country=DE')
-    .then(response => response.json())
+    .then(res => res.json())
     .then(data => {
       allEntries = data;
-      const uniqueSenders = Array.from(new Set(
-        data.map(entry => entry.show.network?.name).filter(Boolean)
-      )).sort();
+      const senders = [...new Set(
+        data.map(e => e.show.network?.name).filter(Boolean)
+      )].sort();
 
-      initSelect(uniqueSenders);
-    })
-    .catch(err => console.error("Fehler beim Laden der TV-Daten:", err));
+      initTomSelect(senders);
+    });
 }
 
-function initSelect(senders) {
+function initTomSelect(senders) {
+  const senderSelect = document.getElementById('senderSelect');
   senderSelect.innerHTML = senders.map(s => `<option value="${s}">${s}</option>`).join('');
 
-  senderSelect.addEventListener('change', updateTables);
+  if (tomSelect) tomSelect.destroy();
+  tomSelect = new TomSelect('#senderSelect', {
+    plugins: ['remove_button'],
+    persist: false,
+    create: false,
+    onChange: updateTables,
+  });
 
-  const initial = getInitialSendersFromURL().filter(s => senders.includes(s));
-  for (let option of senderSelect.options) {
-    option.selected = initial.includes(option.value);
-  }
+  const initial = getInitialSendersFromURL();
+  tomSelect.setValue(initial);
   updateTables();
 }
 
 function getInitialSendersFromURL() {
   const params = new URLSearchParams(window.location.search);
-  const list = params.get("senders");
-  return list ? list.split(',') : [];
+  return params.get('senders')?.split(',') || [];
 }
 
 function updateTables() {
-  const selectedSenders = Array.from(senderSelect.selectedOptions).map(option => option.value);
+  const selected = tomSelect.getValue();
   const now = new Date();
-  const primeStart = new Date();
-  primeStart.setHours(20, 15, 0, 0);
+  const primeTime = new Date();
+  primeTime.setHours(20, 15, 0, 0);
 
-  const nowTable = document.querySelector("#nowTable tbody");
-  const primeTable = document.querySelector("#primeTable tbody");
-  nowTable.innerHTML = "";
-  primeTable.innerHTML = "";
-
-  const nowEntries = [];
-  const primeEntries = [];
+  const nowTable = document.querySelector('#nowTable tbody');
+  const primeTable = document.querySelector('#primeTable tbody');
+  nowTable.innerHTML = '';
+  primeTable.innerHTML = '';
 
   allEntries.forEach(entry => {
-    const channel = entry.show.network?.name;
-    if (!selectedSenders.includes(channel)) return;
+    const sender = entry.show.network?.name;
+    if (!selected.includes(sender)) return;
 
-    const showTime = new Date(entry.airstamp);
-    const diff = Math.abs(now - showTime);
-    const primeDiff = Math.abs(primeStart - showTime);
+    const time = new Date(entry.airstamp);
+    const timeStr = time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-    const row = {
-      channel,
-      name: entry.show.name,
-      time: showTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    };
+    const row = `<tr><td>${sender}</td><td>${entry.show.name}</td><td>${timeStr}</td></tr>`;
 
-    if (diff < 30 * 60 * 1000) nowEntries.push(row);
-    if (primeDiff < 15 * 60 * 1000) primeEntries.push(row);
-  });
-
-  nowEntries.forEach(item => {
-    nowTable.innerHTML += `<tr><td>${item.channel}</td><td>${item.name}</td><td>${item.time}</td></tr>`;
-  });
-
-  primeEntries.forEach(item => {
-    primeTable.innerHTML += `<tr><td>${item.channel}</td><td>${item.name}</td><td>${item.time}</td></tr>`;
+    if (Math.abs(now - time) < 30 * 60 * 1000) nowTable.innerHTML += row;
+    if (Math.abs(primeTime - time) < 15 * 60 * 1000) primeTable.innerHTML += row;
   });
 }
 
 document.getElementById('shareBtn').addEventListener('click', () => {
-  const selected = Array.from(senderSelect.selectedOptions).map(option => option.value);
-  const url = new URL(window.location.href);
+  const selected = tomSelect.getValue();
+  const url = new URL(location.href);
   url.searchParams.set('senders', selected.join(','));
 
   navigator.clipboard.writeText(url.toString()).then(() => {
     const status = document.getElementById('shareStatus');
     status.textContent = '🔗 Link kopiert!';
-    setTimeout(() => { status.textContent = ''; }, 3000);
+    setTimeout(() => (status.textContent = ''), 3000);
   });
 });
 
 document.getElementById('toggleDarkMode').addEventListener('click', () => {
-  isDarkMode = !isDarkMode;
-  document.body.classList.toggle('bg-light', !isDarkMode);
-  document.body.classList.toggle('bg-dark', isDarkMode);
-  document.body.classList.toggle('text-dark', !isDarkMode);
-  document.body.classList.toggle('text-light', isDarkMode);
+  const body = document.body;
+  const dark = body.classList.toggle('bg-dark');
+  body.classList.toggle('bg-light', !dark);
+  body.classList.toggle('text-light', dark);
+  body.classList.toggle('text-dark', !dark);
 });
 
 fetchTVData();
