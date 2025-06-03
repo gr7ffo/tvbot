@@ -10,9 +10,6 @@ async function fetchXMLTV(url) {
     return parser.parseFromString(xmlText, 'text/xml');
 }
 
-// Import the full list of German channels from a separate file
-document.write('<script src="germanChannels.js"></script>');
-
 // Helper: Map channel id to epgId
 const epgpwChannelMap = Object.fromEntries(germanChannels.map(ch => [ch.id, ch.epgId]));
 

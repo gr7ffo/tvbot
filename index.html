@@ -21,17 +21,11 @@
                     type="text" 
                     class="search-input" 
                     id="searchInput" 
-                    placeholder="🔍 Sender durchsuchen..."
-                    oninput="filterChannels()"
+                    placeholder="🔍 Sender durchsuchen und auswählen..."
+                    oninput="searchAndSelectChannels()"
+                    autocomplete="off"
                 >
-            </div>
-            
-            <!-- Multiselect Searchbar -->
-            <div class="search-section">
-                <label for="channelMultiSelect" class="multiselect-title">Sender auswählen:</label>
-                <select id="channelMultiSelect" class="search-input" multiple size="8" onchange="multiSelectChannels()">
-                    <!-- Options will be filled by JS -->
-                </select>
+                <div id="searchResults" class="search-results"></div>
             </div>
         </div>
         
@@ -59,30 +53,56 @@
         </div>
     </div>
 
+    <script src="germanChannels.js"></script>
     <script src="main.js"></script>
     <script>
-    // Fill multiselect with channels
-    function fillChannelMultiSelect() {
-        const select = document.getElementById('channelMultiSelect');
-        select.innerHTML = '';
-        germanChannels.forEach(ch => {
-            const option = document.createElement('option');
-            option.value = ch.id;
-            option.textContent = ch.name;
-            select.appendChild(option);
-        });
+    let selectedChannels = new Set();
+
+    function searchAndSelectChannels() {
+        const input = document.getElementById('searchInput');
+        const resultsDiv = document.getElementById('searchResults');
+        const query = input.value.trim().toLowerCase();
+        resultsDiv.innerHTML = '';
+        if (!query) {
+            // Show selected channels as tags
+            if (selectedChannels.size > 0) {
+                resultsDiv.innerHTML = Array.from(selectedChannels).map(id => {
+                    const ch = germanChannels.find(c => c.id === id);
+                    return `<span class="selected-channel-tag">${ch ? ch.name : id} <button onclick="removeSelectedChannel('${id}')">×</button></span>`;
+                }).join(' ');
+            }
+            return;
+        }
+        // Filter channels
+        const filtered = germanChannels.filter(ch => ch.name.toLowerCase().includes(query));
+        if (filtered.length === 0) {
+            resultsDiv.innerHTML = '<div class="no-results">Kein Sender gefunden</div>';
+            return;
+        }
+        resultsDiv.innerHTML = filtered.map(ch => {
+            const checked = selectedChannels.has(ch.id) ? 'checked' : '';
+            return `<label class="search-result-item"><input type="checkbox" value="${ch.id}" ${checked} onchange="toggleChannelSearch('${ch.id}')"> ${ch.name}</label>`;
+        }).join('');
     }
 
-    // Handle selection
-    function multiSelectChannels() {
-        const select = document.getElementById('channelMultiSelect');
-        selectedChannels = new Set(Array.from(select.selectedOptions).map(opt => opt.value));
+    function toggleChannelSearch(id) {
+        if (selectedChannels.has(id)) {
+            selectedChannels.delete(id);
+        } else {
+            selectedChannels.add(id);
+        }
         updateTables();
+        searchAndSelectChannels();
     }
 
-    // Replace old grid with new multiselect
+    function removeSelectedChannel(id) {
+        selectedChannels.delete(id);
+        updateTables();
+        searchAndSelectChannels();
+    }
+
     window.addEventListener('DOMContentLoaded', () => {
-        fillChannelMultiSelect();
+        searchAndSelectChannels();
     });
     </script>
 </body>
