@@ -39,7 +39,12 @@ async function loadTVProgram() {
     loading.innerHTML = 'Lade aktuelle TV-Programmdaten (epg.pw API)...';
     tablesContainer.style.display = 'none';
     try {
-        const channelIds = germanChannels.map(ch => ch.id);
+        // Only fetch for selected channels, not all
+        const channelIds = Array.from(selectedChannels);
+        if (channelIds.length === 0) {
+            loading.innerHTML = 'Bitte wähle mindestens einen Sender aus.';
+            return;
+        }
         const results = await Promise.all(channelIds.map(id => fetchEPGPWChannel(id)));
         const programsByChannel = new Map();
         channelIds.forEach((id, idx) => programsByChannel.set(id, results[idx]));
