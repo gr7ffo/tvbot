@@ -1,109 +1,351 @@
 <!DOCTYPE html>
 <html lang="de">
-<link rel="stylesheet" href="style.css">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TV-Programm - Deutsche Sender</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>TV Programm Suche – epg.pw</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Choices.js CSS for Multiselect -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/choices.js/public/assets/styles/choices.min.css" />
+    <style>
+        body { padding-top: 2rem; }
+        .choices__inner { min-height: 48px; }
+        .program-card { margin-bottom: 1.5rem; }
+    </style>
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <h1>📺 TV-Programm</h1>
-            <div class="current-time" id="currentTime"></div>
-            <button class="refresh-btn" onclick="loadTVProgram()">🔄 Aktualisieren</button>
-        </div>
-        
-        <div class="controls">
-            <!-- Suchleiste -->
-            <div class="search-section">
-                <input 
-                    type="text" 
-                    class="search-input" 
-                    id="searchInput" 
-                    placeholder="🔍 Sender durchsuchen und auswählen..."
-                    oninput="searchAndSelectChannels()"
-                    autocomplete="off"
-                >
-                <div id="searchResults" class="search-results"></div>
+<div class="container">
+    <h1 class="mb-4">TV Programm Suche (epg.pw)</h1>
+    <form id="searchForm" class="mb-4">
+        <label for="channelSelect" class="form-label">Wähle einen oder mehrere Kanäle:</label>
+        <select id="channelSelect" name="channels" multiple></select>
+        <button type="submit" class="btn btn-primary mt-3">Programm anzeigen</button>
+    </form>
+    <div id="results"></div>
+</div>
+
+<!-- Bootstrap JS und Choices.js vor dem eigenen Script laden -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/choices.js/public/assets/scripts/choices.min.js"></script>
+<script>
+// --- germanChannels direkt eingebettet ---
+const germanChannels = [
+    { id: '123-tv', name: '123.tv', epgId: 76773 },
+    { id: '13th-street', name: '13TH STREET', epgId: 76766 },
+    { id: '3', name: '3+', epgId: 76670 },
+    { id: '3sat', name: '3sat', epgId: 76682 },
+    { id: 'adult-channel', name: 'Adult Channel', epgId: 76685 },
+    { id: 'al-jazeera', name: 'Al Jazeera', epgId: 76735 },
+    { id: 'animal-planet', name: 'Animal Planet', epgId: 76759 },
+    { id: 'anixe', name: 'ANIXE', epgId: 76745 },
+    { id: 'ard-alpha', name: 'ARD-alpha', epgId: 76617 },
+    { id: 'arte', name: 'ARTE', epgId: 76641 },
+    { id: 'atv', name: 'ATV', epgId: 76810 },
+    { id: 'atv-ii', name: 'ATV II', epgId: 76638 },
+    { id: 'auto-motor-sport-ch', name: 'Auto Motor Sport Ch.', epgId: 76719 },
+    { id: 'bbc-four', name: 'BBC four', epgId: 76761 },
+    { id: 'bbc-news', name: 'BBC News', epgId: 76650 },
+    { id: 'bbc-one', name: 'BBC One', epgId: 76657 },
+    { id: 'bbc-two', name: 'BBC Two', epgId: 76757 },
+    { id: 'bbc-world-news', name: 'BBC World News', epgId: 76771 },
+    { id: 'beate-uhse-tv', name: 'Beate-Uhse.TV', epgId: 76642 },
+    { id: 'belgien-1', name: 'Belgien 1', epgId: 76703 },
+    { id: 'bergblick', name: 'Bergblick', epgId: 76688 },
+    { id: 'bibel-tv', name: 'Bibel TV', epgId: 76794 },
+    { id: 'bloomberg-europe-tv', name: 'Bloomberg Europe TV', epgId: 76639 },
+    { id: 'bongusto', name: 'BonGusto', epgId: 76746 },
+    { id: 'br', name: 'BR', epgId: 76712 },
+    { id: 'bundesliga-hd-1', name: 'Bundesliga HD 1', epgId: 76729 },
+    { id: 'canal', name: 'Canal+', epgId: 76655 },
+    { id: 'canal-sport', name: 'Canal+ Sport', epgId: 76785 },
+    { id: 'canal-cin-ma', name: 'Canal+Cinéma', epgId: 76750 },
+    { id: 'canale-5', name: 'Canale 5', epgId: 76654 },
+    { id: 'cartoon-network', name: 'Cartoon Network', epgId: 76763 },
+    { id: 'cartoonito', name: 'Cartoonito', epgId: 197540 },
+    { id: 'cartoonito-sky', name: 'Cartoonito (Sky)', epgId: 212832 },
+    { id: 'channel21', name: 'Channel21', epgId: 405758 },
+    { id: 'classica', name: 'Classica', epgId: 76723 },
+    { id: 'club-mtv', name: 'Club MTV', epgId: 76623 },
+    { id: 'cnbc', name: 'CNBC', epgId: 76647 },
+    { id: 'cnn-international', name: 'CNN International', epgId: 76797 },
+    { id: 'cnn-t-rk', name: 'CNN Türk', epgId: 76633 },
+    { id: 'comedy-central', name: 'COMEDY CENTRAL', epgId: 76742 },
+    { id: 'craction', name: 'craction', epgId: 400784 },
+    { id: 'crime-investigation', name: 'Crime + Investigation', epgId: 76667 },
+    { id: 'curiosity-channel', name: 'Curiosity Channel', epgId: 76646 },
+    { id: 'das-erste', name: 'Das Erste', epgId: 76674 },
+    { id: 'dazn', name: 'DAZN', epgId: 76632 },
+    { id: 'dazn-1', name: 'DAZN 1', epgId: 212828 },
+    { id: 'dazn-2', name: 'DAZN 2', epgId: 212840 },
+    { id: 'deluxe-music', name: 'DELUXE MUSIC', epgId: 76809 },
+    { id: 'deutsches-musik-ferns', name: 'Deutsches Musik Ferns.', epgId: 76665 },
+    { id: 'df1', name: 'DF1', epgId: 182674 },
+    { id: 'dfb-play', name: 'DFB Play', epgId: 412084 },
+    { id: 'discovery-hd', name: 'Discovery HD', epgId: 76686 },
+    { id: 'disney-channel', name: 'Disney Channel', epgId: 76786 },
+    { id: 'dmax', name: 'DMAX', epgId: 76692 },
+    { id: 'dokusat', name: 'DOKUSAT', epgId: 379181 },
+    { id: 'dr1', name: 'DR1', epgId: 76799 },
+    { id: 'esports1', name: 'eSports1', epgId: 76707 },
+    { id: 'euro-d', name: 'Euro D', epgId: 76741 },
+    { id: 'euro-star', name: 'Euro Star', epgId: 76711 },
+    { id: 'euronews', name: 'euronews', epgId: 76768 },
+    { id: 'eurosport-1', name: 'Eurosport 1', epgId: 76619 },
+    { id: 'eurosport-2', name: 'Eurosport 2', epgId: 76744 },
+    { id: 'extreme-sports', name: 'EXTREME SPORTS', epgId: 76690 },
+    { id: 'fashion-tv', name: 'Fashion TV', epgId: 76775 },
+    { id: 'fix-amp-foxi', name: 'Fix &amp; Foxi', epgId: 76683 },
+    { id: 'france-2', name: 'France 2', epgId: 76691 },
+    { id: 'france-24-engl', name: 'France 24 (engl.)', epgId: 76807 },
+    { id: 'france-24-franz', name: 'France 24 (franz.)', epgId: 76698 },
+    { id: 'france-3', name: 'France 3', epgId: 76643 },
+    { id: 'france-4', name: 'France 4', epgId: 76747 },
+    { id: 'france-5', name: 'France 5', epgId: 76678 },
+    { id: 'geo-television', name: 'GEO Television', epgId: 76800 },
+    { id: 'goldstar-tv', name: 'GoldStar TV', epgId: 76803 },
+    { id: 'gute-laune-tv', name: 'Gute Laune TV', epgId: 76758 },
+    { id: 'hamburg-1', name: 'Hamburg 1', epgId: 76701 },
+    { id: 'heimatkanal', name: 'Heimatkanal', epgId: 76675 },
+    { id: 'history-hd', name: 'HISTORY HD', epgId: 76634 },
+    { id: 'home-amp-garden-tv', name: 'Home &amp; Garden TV', epgId: 76651 },
+    { id: 'hr', name: 'HR', epgId: 76648 },
+    { id: 'hse', name: 'HSE', epgId: 76661 },
+    { id: 'hse-extra', name: 'HSE Extra', epgId: 76737 },
+    { id: 'jukebox', name: 'Jukebox', epgId: 76615 },
+    { id: 'k-tv', name: 'K-TV', epgId: 76805 },
+    { id: 'kabel-eins', name: 'kabel eins', epgId: 76792 },
+    { id: 'kabel-eins-classics', name: 'kabel eins CLASSICS', epgId: 76725 },
+    { id: 'kabel-eins-doku', name: 'kabel eins Doku', epgId: 76715 },
+    { id: 'kika', name: 'KiKA', epgId: 76680 },
+    { id: 'kinowelttv', name: 'KinoweltTV', epgId: 76770 },
+    { id: 'leipzig-fernsehen', name: 'Leipzig Fernsehen', epgId: 76710 },
+    { id: 'lust-pur', name: 'LUST PUR', epgId: 76713 },
+    { id: 'marco-polo-tv', name: 'Marco Polo TV', epgId: 76776 },
+    { id: 'mdr', name: 'MDR', epgId: 76730 },
+    { id: 'mezzo', name: 'Mezzo', epgId: 76752 },
+    { id: 'more-than-sports-tv', name: 'More than Sports TV', epgId: 76765 },
+    { id: 'motorvision-tv', name: 'Motorvision TV', epgId: 76630 },
+    { id: 'motorvision', name: 'Motorvision+', epgId: 197537 },
+    { id: 'mtv', name: 'MTV', epgId: 76780 },
+    { id: 'mtv-80s', name: 'MTV 80s', epgId: 76728 },
+    { id: 'mtv-base', name: 'MTV Base', epgId: 76724 },
+    { id: 'mtv-hits', name: 'MTV Hits', epgId: 76793 },
+    { id: 'mtv-live-hd', name: 'MTV Live HD', epgId: 76777 },
+    { id: 'm-nchen-tv', name: 'münchen.tv', epgId: 76666 },
+    { id: 'n-tv', name: 'n-tv', epgId: 76640 },
+    { id: 'n24-doku', name: 'N24 Doku', epgId: 76636 },
+    { id: 'nat-geo-hd', name: 'Nat Geo HD', epgId: 76628 },
+    { id: 'nat-geo-wild', name: 'NAT GEO WILD', epgId: 76783 },
+    { id: 'nautical-channel', name: 'Nautical Channel', epgId: 76721 },
+    { id: 'ndr', name: 'NDR', epgId: 76748 },
+    { id: 'nhk-world-tv', name: 'NHK WORLD TV', epgId: 76681 },
+    { id: 'nick-jr', name: 'Nick Jr.', epgId: 76622 },
+    { id: 'nick-mtv', name: 'nick/MTV+', epgId: 76778 },
+    { id: 'nicktoons', name: 'Nicktoons', epgId: 76736 },
+    { id: 'nitro', name: 'NITRO', epgId: 76787 },
+    { id: 'now-us', name: 'NOW US', epgId: 76694 },
+    { id: 'oe24-tv', name: 'oe24.TV', epgId: 100304 },
+    { id: 'one', name: 'ONE', epgId: 76738 },
+    { id: 'orf-2', name: 'ORF 2', epgId: 76616 },
+    { id: 'orf-eins', name: 'ORF eins', epgId: 76706 },
+    { id: 'orf-iii', name: 'ORF III', epgId: 76734 },
+    { id: 'orf-sport', name: 'ORF SPORT +', epgId: 76756 },
+    { id: 'phoenix', name: 'PHOENIX', epgId: 76649 },
+    { id: 'playboy-tv', name: 'Playboy TV', epgId: 76660 },
+    { id: 'prime', name: 'Prime', epgId: 430424 },
+    { id: 'prosieben', name: 'ProSieben', epgId: 76762 },
+    { id: 'prosieben-fun', name: 'ProSieben Fun', epgId: 76749 },
+    { id: 'prosieben-maxx', name: 'ProSieben MAXX', epgId: 76702 },
+    { id: 'puls-24', name: 'PULS 24', epgId: 401095 },
+    { id: 'puls-4', name: 'PULS 4', epgId: 76732 },
+    { id: 'puls-acht', name: 'PULS acht', epgId: 76808 },
+    { id: 'qvc', name: 'QVC', epgId: 76697 },
+    { id: 'qvc2', name: 'QVC2', epgId: 76618 },
+    { id: 'rbb', name: 'RBB', epgId: 76751 },
+    { id: 'rhein-neckar-fernsehen', name: 'Rhein-Neckar Fernsehen', epgId: 76677 },
+    { id: 'ric', name: 'RiC', epgId: 76731 },
+    { id: 'rocket-beans-tv', name: 'Rocket Beans TV', epgId: 401464 },
+    { id: 'romance-tv', name: 'Romance TV', epgId: 76624 },
+    { id: 'rtl', name: 'RTL', epgId: 76740 },
+    { id: 'rtl-crime', name: 'RTL Crime', epgId: 76700 },
+    { id: 'rtl-ii', name: 'RTL II', epgId: 76755 },
+    { id: 'rtl-living', name: 'RTL Living', epgId: 76673 },
+    { id: 'rtl-passion', name: 'RTL Passion', epgId: 76804 },
+    { id: 'rtlup', name: 'RTLup', epgId: 76722 },
+    { id: 'sat-1', name: 'SAT.1', epgId: 76664 },
+    { id: 'sat-1-emotions', name: 'SAT.1 emotions', epgId: 76769 },
+    { id: 'sat-1-gold', name: 'SAT.1 Gold', epgId: 76716 },
+    { id: 'servus-tv', name: 'Servus TV', epgId: 76626 },
+    { id: 'show-turk', name: 'Show Turk', epgId: 76779 },
+    { id: 'silverline', name: 'Silverline', epgId: 76631 },
+    { id: 'sixx', name: 'sixx', epgId: 76614 },
+    { id: 'sky-1', name: 'Sky 1', epgId: 10837 },
+    { id: 'sky-action', name: 'Sky Action', epgId: 76669 },
+    { id: 'sky-atlantic-hd', name: 'Sky Atlantic HD', epgId: 76774 },
+    { id: 'sky-cinema-classics', name: 'Sky Cinema Classics', epgId: 10917 },
+    { id: 'sky-cinema-highlights-hd', name: 'Sky Cinema Highlights HD', epgId: 321554 },
+    { id: 'sky-cinema-premieren', name: 'Sky Cinema Premieren', epgId: 10817 },
+    { id: 'sky-crime', name: 'Sky Crime', epgId: 10908 },
+    { id: 'sky-documentaries', name: 'Sky Documentaries', epgId: 10620 },
+    { id: 'sky-family', name: 'Sky Family', epgId: 10650 },
+    { id: 'sky-krimi', name: 'Sky Krimi', epgId: 76663 },
+    { id: 'sky-nature', name: 'Sky Nature', epgId: 10640 },
+    { id: 'sky-one', name: 'Sky One', epgId: 401732 },
+    { id: 'sky-replay', name: 'sky replay', epgId: 10635 },
+    { id: 'sky-showcase', name: 'sky showcase', epgId: 10918 },
+    { id: 'sky-sport-1', name: 'Sky Sport 1', epgId: 401577 },
+    { id: 'sky-sport-10', name: 'Sky Sport 10', epgId: 212831 },
+    { id: 'sky-sport-2', name: 'Sky Sport 2', epgId: 413822 },
+    { id: 'sky-sport-3', name: 'Sky Sport 3', epgId: 401826 },
+    { id: 'sky-sport-4', name: 'Sky Sport 4', epgId: 212838 },
+    { id: 'sky-sport-5', name: 'Sky Sport 5', epgId: 212824 },
+    { id: 'sky-sport-6', name: 'Sky Sport 6', epgId: 407926 },
+    { id: 'sky-sport-7', name: 'Sky Sport 7', epgId: 212820 },
+    { id: 'sky-sport-8', name: 'Sky Sport 8', epgId: 212818 },
+    { id: 'sky-sport-9', name: 'Sky Sport 9', epgId: 413029 },
+    { id: 'sky-sport-austria-1-hd', name: 'Sky Sport Austria 1 HD', epgId: 197536 },
+    { id: 'sky-sport-bundesliga', name: 'Sky Sport Bundesliga', epgId: 212821 },
+    { id: 'sky-sport-bundesliga-1', name: 'Sky Sport Bundesliga 1', epgId: 420148 },
+    { id: 'sky-sport-bundesliga-10', name: 'Sky Sport Bundesliga 10', epgId: 212817 },
+    { id: 'sky-sport-bundesliga-2', name: 'Sky Sport Bundesliga 2', epgId: 212816 },
+    { id: 'sky-sport-bundesliga-3', name: 'Sky Sport Bundesliga 3', epgId: 212845 },
+    { id: 'sky-sport-bundesliga-4', name: 'Sky Sport Bundesliga 4', epgId: 405757 },
+    { id: 'sky-sport-bundesliga-5', name: 'Sky Sport Bundesliga 5', epgId: 405384 },
+    { id: 'sky-sport-bundesliga-6', name: 'Sky Sport Bundesliga 6', epgId: 409473 },
+    { id: 'sky-sport-bundesliga-7', name: 'Sky Sport Bundesliga 7', epgId: 212825 },
+    { id: 'sky-sport-bundesliga-8', name: 'Sky Sport Bundesliga 8', epgId: 212822 },
+    { id: 'sky-sport-bundesliga-9', name: 'Sky Sport Bundesliga 9', epgId: 212814 },
+    { id: 'sky-sport-bundesliga-uhd', name: 'Sky Sport Bundesliga UHD', epgId: 392174 },
+    { id: 'sky-sport-f1', name: 'SKY Sport F1', epgId: 10781 },
+    { id: 'sky-sport-golf', name: 'Sky Sport Golf', epgId: 10645 },
+    { id: 'sky-sport-mix', name: 'Sky Sport Mix', epgId: 10785 },
+    { id: 'sky-sport-news', name: 'Sky Sport News', epgId: 76733 },
+    { id: 'sky-sport-premier-leaque', name: 'Sky Sport Premier Leaque', epgId: 10880 },
+    { id: 'sky-sport-tennis', name: 'Sky Sport Tennis', epgId: 10634 },
+    { id: 'sky-sport-top-event', name: 'Sky Sport Top Event', epgId: 10675 },
+    { id: 'sky-sport-uhd', name: 'Sky Sport UHD', epgId: 392175 },
+    { id: 'sonnenklar-tv', name: 'sonnenklar.TV', epgId: 76781 },
+    { id: 'sony-axn', name: 'SONY AXN', epgId: 76753 },
+    { id: 'sony-channel', name: 'Sony Channel', epgId: 10653 },
+    { id: 'spiegel-geschichte', name: 'SPIEGEL Geschichte', epgId: 76714 },
+    { id: 'sport1', name: 'SPORT1', epgId: 76659 },
+    { id: 'sport1', name: 'SPORT1+', epgId: 76754 },
+    { id: 'sportdigital', name: 'sportdigital', epgId: 76705 },
+    { id: 'srf-1', name: 'SRF 1', epgId: 76784 },
+    { id: 'srf-zwei', name: 'SRF zwei', epgId: 76772 },
+    { id: 'star-tv', name: 'STAR TV', epgId: 76658 },
+    { id: 'super-rtl', name: 'SUPER RTL', epgId: 76767 },
+    { id: 'swr-sr', name: 'SWR/SR', epgId: 76693 },
+    { id: 'syfy', name: 'Syfy', epgId: 76764 },
+    { id: 'tagesschau24', name: 'tagesschau24', epgId: 76696 },
+    { id: 'tele-5', name: 'TELE 5', epgId: 76708 },
+    { id: 'tlc', name: 'TLC', epgId: 76699 },
+    { id: 'toggo-plus', name: 'TOGGO plus', epgId: 76789 },
+    { id: 'trace-tv', name: 'Trace TV', epgId: 76652 },
+    { id: 'travelxp-4k', name: 'travelxp 4K', epgId: 76687 },
+    { id: 'turkmax-gurme', name: 'Turkmax Gurme', epgId: 76760 },
+    { id: 'tv-berlin', name: 'tv.berlin', epgId: 383594 },
+    { id: 'tv2', name: 'TV2', epgId: 76653 },
+    { id: 'tv5-monde', name: 'TV5 Monde', epgId: 76629 },
+    { id: 'uhd1', name: 'UHD1', epgId: 76726 },
+    { id: 'universal-channel-hd', name: 'Universal Channel HD', epgId: 76662 },
+    { id: 'vox', name: 'VOX', epgId: 76704 },
+    { id: 'voxup', name: 'VOXup', epgId: 76796 },
+    { id: 'warner-tv-comedy', name: 'Warner TV Comedy', epgId: 76679 },
+    { id: 'warner-tv-film', name: 'Warner TV Film', epgId: 76645 },
+    { id: 'warner-tv-serie', name: 'Warner TV Serie', epgId: 76806 },
+    { id: 'wdr', name: 'WDR', epgId: 76684 },
+    { id: 'welt', name: 'WELT', epgId: 76795 },
+    { id: 'welt-der-wunder', name: 'Welt der Wunder', epgId: 76625 },
+    { id: 'zdf', name: 'ZDF', epgId: 76627 },
+    { id: 'zdfinfo', name: 'ZDFinfo', epgId: 76718 },
+    { id: 'zdfneo', name: 'ZDFneo', epgId: 76739 },
+];
+
+// Hilfsfunktionen
+function formatTime(dateStr) {
+    const d = new Date(dateStr);
+    return d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+}
+
+function getTodayDateStr() {
+    const d = new Date();
+    return d.toISOString().slice(0,10).replace(/-/g, '');
+}
+
+function findCurrentAnd2015(programs) {
+    const now = new Date();
+    const target2015 = new Date(now);
+    target2015.setHours(20, 15, 0, 0);
+    let current = null, at2015 = null;
+    for (const p of programs) {
+        const start = new Date(p.start);
+        const end = new Date(p.stop);
+        if (now >= start && now < end) current = p;
+        if (target2015 >= start && target2015 < end) at2015 = p;
+    }
+    return { current, at2015 };
+}
+
+// Multiselect initialisieren
+const channelSelect = document.getElementById('channelSelect');
+germanChannels.forEach(ch => {
+    const opt = document.createElement('option');
+    opt.value = ch.epgId;
+    opt.textContent = ch.name;
+    channelSelect.appendChild(opt);
+});
+const choices = new Choices(channelSelect, {
+    removeItemButton: true,
+    searchResultLimit: 10,
+    searchFields: ['label', 'value'],
+    placeholderValue: 'Kanal(e) suchen...'
+});
+
+// Form-Handler
+const form = document.getElementById('searchForm');
+const resultsDiv = document.getElementById('results');
+form.addEventListener('submit', async function(e) {
+    e.preventDefault();
+    resultsDiv.innerHTML = '';
+    const selected = choices.getValue(true); // Array of epgIds
+    if (!selected.length) {
+        resultsDiv.innerHTML = '<div class="alert alert-warning">Bitte mindestens einen Kanal auswählen.</div>';
+        return;
+    }    const dateStr = getTodayDateStr();
+    // Status-Anzeige hinzufügen
+    resultsDiv.innerHTML = '<div class="alert alert-info">Programmdaten werden geladen...</div>';
+    
+    for (const epgId of selected) {
+        const channel = germanChannels.find(ch => ch.epgId == epgId);
+        // CORS-Proxy verwenden
+        const corsProxy = 'https://corsproxy.io/?';
+        const apiUrl = `https://epg.pw/api/epg.json?lang=de&date=${dateStr}&channel_id=${epgId}`;
+        const url = corsProxy + encodeURIComponent(apiUrl);
+        let data;
+        try {
+            console.log(`Fetching data for ${channel?.name || epgId}...`);
+            const resp = await fetch(url);
+            data = await resp.json();
+        } catch (err) {
+            resultsDiv.innerHTML += `<div class="alert alert-danger">Fehler beim Laden von ${channel?.name || epgId}</div>`;
+            continue;
+        }
+        const { current, at2015 } = findCurrentAnd2015(data);
+        resultsDiv.innerHTML += `
+        <div class="card program-card">
+            <div class="card-header bg-primary text-white">
+                <strong>${channel?.name || epgId}</strong>
+            </div>
+            <div class="card-body">
+                <div><strong>Jetzt:</strong> ${current ? `${formatTime(current.start)} – ${formatTime(current.stop)}: ${current.title}` : 'Keine Sendung gefunden'}</div>
+                <div><strong>20:15 Uhr:</strong> ${at2015 ? `${formatTime(at2015.start)} – ${formatTime(at2015.stop)}: ${at2015.title}` : 'Keine Sendung gefunden'}</div>
             </div>
         </div>
-        
-        <div id="loading" class="loading">
-            Lade TV-Programmdaten...
-        </div>
-        
-        <!-- Tabellen Container -->
-        <div class="tables-container" id="tablesContainer" style="display: none;">
-            <!-- Jetzt laufende Programme -->
-            <div class="table-section">
-                <div class="table-title now">🔴 Läuft jetzt</div>
-                <div id="nowTable">
-                    <!-- Wird dynamisch gefüllt -->
-                </div>
-            </div>
-            
-            <!-- 20:15 Programme -->
-            <div class="table-section">
-                <div class="table-title primetime">⭐ Um 20:15 Uhr</div>
-                <div id="primetimeTable">
-                    <!-- Wird dynamisch gefüllt -->
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <script src="germanChannels.js"></script>
-    <script src="main.js"></script>
-    <script>
-    let selectedChannels = new Set();
-
-    function searchAndSelectChannels() {
-        const input = document.getElementById('searchInput');
-        const resultsDiv = document.getElementById('searchResults');
-        const query = input.value.trim().toLowerCase();
-        resultsDiv.innerHTML = '';
-        if (!query) {
-            // Show selected channels as tags
-            if (selectedChannels.size > 0) {
-                resultsDiv.innerHTML = Array.from(selectedChannels).map(id => {
-                    const ch = germanChannels.find(c => c.id === id);
-                    return `<span class="selected-channel-tag">${ch ? ch.name : id} <button onclick="removeSelectedChannel('${id}')">×</button></span>`;
-                }).join(' ');
-            }
-            return;
-        }
-        // Filter channels
-        const filtered = germanChannels.filter(ch => ch.name.toLowerCase().includes(query));
-        if (filtered.length === 0) {
-            resultsDiv.innerHTML = '<div class="no-results">Kein Sender gefunden</div>';
-            return;
-        }
-        resultsDiv.innerHTML = filtered.map(ch => {
-            const checked = selectedChannels.has(ch.id) ? 'checked' : '';
-            return `<label class="search-result-item"><input type="checkbox" value="${ch.id}" ${checked} onchange="toggleChannelSearch('${ch.id}')"> ${ch.name}</label>`;
-        }).join('');
+        `;
     }
-
-    function toggleChannelSearch(id) {
-        if (selectedChannels.has(id)) {
-            selectedChannels.delete(id);
-        } else {
-            selectedChannels.add(id);
-        }
-        updateTables();
-        searchAndSelectChannels();
-    }
-
-    function removeSelectedChannel(id) {
-        selectedChannels.delete(id);
-        updateTables();
-        searchAndSelectChannels();
-    }
-
-    window.addEventListener('DOMContentLoaded', () => {
-        searchAndSelectChannels();
-    });
-    </script>
+});
+</script>
 </body>
 </html>

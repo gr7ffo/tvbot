@@ -1,3 +1,0 @@
-# TVBot
-
-prompting by CSr
