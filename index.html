@@ -313,27 +313,78 @@ form.addEventListener('submit', async function(e) {
     if (!selected.length) {
         resultsDiv.innerHTML = '<div class="alert alert-warning">Bitte mindestens einen Kanal auswählen.</div>';
         return;
-    }    const dateStr = getTodayDateStr();
-    // Status-Anzeige hinzufügen
+    }
+    const dateStr = getTodayDateStr();    // Status-Anzeige hinzufügen
     resultsDiv.innerHTML = '<div class="alert alert-info">Programmdaten werden geladen...</div>';
     
+    // Alternativen CORS-Proxy verwenden (allorigins)
+    const corsProxy = 'https://api.allorigins.win/raw?url=';
+    let output = '';
     for (const epgId of selected) {
         const channel = germanChannels.find(ch => ch.epgId == epgId);
-        // CORS-Proxy verwenden
-        const corsProxy = 'https://corsproxy.io/?';
         const apiUrl = `https://epg.pw/api/epg.json?lang=de&date=${dateStr}&channel_id=${epgId}`;
         const url = corsProxy + encodeURIComponent(apiUrl);
         let data;
         try {
             console.log(`Fetching data for ${channel?.name || epgId}...`);
-            const resp = await fetch(url);
-            data = await resp.json();
+            // Timeout von 10 Sekunden für die Anfrage
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 10000);
+            const resp = await fetch(url, {
+                signal: controller.signal,
+                headers: {
+                    'Accept': 'application/json'
+                }
+            });
+            clearTimeout(timeoutId);
+            if (!resp.ok) {
+                throw new Error(`HTTP error! status: ${resp.status}`);
+            }
+            const raw = await resp.json();
+            // epg.pw liefert jetzt ein Objekt mit epg_list als Array
+            if (Array.isArray(raw)) {
+                data = raw;
+            } else if (raw && Array.isArray(raw.epg_list)) {
+                // Mappe auf das alte Format: start, stop, title
+                data = raw.epg_list.map((item, idx, arr) => {
+                    // start_date: '20250607200000 +0000' => ISO
+                    function parseDate(str) {
+                        // Nur das Datum, ohne +0000
+                        const base = str.split(' ')[0];
+                        const year = base.slice(0,4);
+                        const month = base.slice(4,6);
+                        const day = base.slice(6,8);
+                        const hour = base.slice(8,10);
+                        const min = base.slice(10,12);
+                        const sec = base.slice(12,14);
+                        return new Date(`${year}-${month}-${day}T${hour}:${min}:${sec}Z`).toISOString();
+                    }
+                    const start = parseDate(item.start_date);
+                    // stop = start des nächsten Elements, oder +1h
+                    let stop;
+                    if (arr[idx+1]) {
+                        stop = parseDate(arr[idx+1].start_date);
+                    } else {
+                        stop = new Date(new Date(start).getTime() + 60*60*1000).toISOString();
+                    }
+                    return {
+                        start,
+                        stop,
+                        title: item.title || '',
+                        desc: item.desc || ''
+                    };
+                });
+            } else if (raw && typeof raw === 'object' && raw[epgId]) {
+                data = raw[epgId];
+            } else {
+                throw new Error('API Antwort: ' + JSON.stringify(raw));
+            }
         } catch (err) {
-            resultsDiv.innerHTML += `<div class="alert alert-danger">Fehler beim Laden von ${channel?.name || epgId}</div>`;
+            output += `<div class="alert alert-danger">Fehler beim Laden von ${channel?.name || epgId}: ${(err.message || err)}</div>`;
             continue;
         }
         const { current, at2015 } = findCurrentAnd2015(data);
-        resultsDiv.innerHTML += `
+        output += `
         <div class="card program-card">
             <div class="card-header bg-primary text-white">
                 <strong>${channel?.name || epgId}</strong>
@@ -345,6 +396,7 @@ form.addEventListener('submit', async function(e) {
         </div>
         `;
     }
+    resultsDiv.innerHTML = output || '<div class="alert alert-warning">Keine Ergebnisse gefunden.</div>';
 });
 </script>
 </body>
