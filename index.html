@@ -303,6 +303,36 @@ const choices = new Choices(channelSelect, {
     placeholderValue: 'Kanal(e) suchen...'
 });
 
+// --- URL-Parameter auslesen und Kanäle vorauswählen ---
+function getChannelIdsFromUrl() {
+    const params = new URLSearchParams(window.location.search);
+    const channels = params.get('channels');
+    if (!channels) return [];
+    return channels.split(',').map(id => id.trim()).filter(Boolean);
+}
+
+function setChannelsInUrl(epgIds) {
+    const params = new URLSearchParams(window.location.search);
+    if (epgIds.length) {
+        params.set('channels', epgIds.join(','));
+    } else {
+        params.delete('channels');
+    }
+    const newUrl = window.location.pathname + (params.toString() ? '?' + params.toString() : '');
+    window.history.replaceState({}, '', newUrl);
+}
+
+// Beim Laden: Kanäle aus URL vorauswählen
+const preselect = getChannelIdsFromUrl();
+if (preselect.length) {
+    // Setze Auswahl im Multiselect
+    preselect.forEach(id => {
+        const option = channelSelect.querySelector(`option[value="${id}"]`);
+        if (option) option.selected = true;
+    });
+    choices.setChoiceByValue(preselect);
+}
+
 // Form-Handler
 const form = document.getElementById('searchForm');
 const resultsDiv = document.getElementById('results');
@@ -310,6 +340,8 @@ form.addEventListener('submit', async function(e) {
     e.preventDefault();
     resultsDiv.innerHTML = '';
     const selected = choices.getValue(true); // Array of epgIds
+    // --- URL aktualisieren ---
+    setChannelsInUrl(selected);
     if (!selected.length) {
         resultsDiv.innerHTML = '<div class="alert alert-warning">Bitte mindestens einen Kanal auswählen.</div>';
         return;
