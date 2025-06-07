@@ -349,13 +349,12 @@ form.addEventListener('submit', async function(e) {
     const dateStr = getTodayDateStr();    // Status-Anzeige hinzufügen
     resultsDiv.innerHTML = '<div class="alert alert-info">Programmdaten werden geladen...</div>';
     
-    // Alternativen CORS-Proxy verwenden (allorigins)
-    const corsProxy = 'https://api.allorigins.win/raw?url=';
+    // Alternativen CORS-Proxy entfernen, API direkt aufrufen
     let output = '';
     for (const epgId of selected) {
         const channel = germanChannels.find(ch => ch.epgId == epgId);
         const apiUrl = `https://epg.pw/api/epg.json?lang=de&date=${dateStr}&channel_id=${epgId}`;
-        const url = corsProxy + encodeURIComponent(apiUrl);
+        const url = apiUrl; // Direkt ohne Proxy
         let data;
         try {
             console.log(`Fetching data for ${channel?.name || epgId}...`);
