@@ -12,14 +12,83 @@
         body { padding-top: 2rem; }
         .choices__inner { min-height: 48px; }
         .program-card { margin-bottom: 1.5rem; }
+        /* --- Darkmode Support --- */
+        :root {
+            --bg: #fff;
+            --text: #212529;
+            --card-bg: #fff;
+            --card-header-bg: #0d6efd;
+            --card-header-text: #fff;
+        }
+        body.darkmode {
+            --bg: #181a1b;
+            --text: #e0e0e0;
+            --card-bg: #23272b;
+            --card-header-bg: #222b3a;
+            --card-header-text: #e0e0e0;
+        }
+        body {
+            background: var(--bg);
+            color: var(--text);
+            transition: background 0.2s, color 0.2s;
+        }
+        .card.program-card {
+            background: var(--card-bg);
+            color: var(--text);
+        }
+        .card-header.bg-primary.text-white {
+            background: var(--card-header-bg) !important;
+            color: var(--card-header-text) !important;
+        }
+        .btn-darkmode {
+            position: absolute;
+            top: 1.5rem;
+            right: 2rem;
+            z-index: 10;
+        }
+        .choices__inner {
+            min-height: 48px;
+            background: var(--card-bg) !important;
+            color: var(--text) !important;
+            border-color: #ced4da;
+            transition: background 0.2s, color 0.2s;
+        }
+        .choices__input {
+            background: var(--card-bg) !important;
+            color: var(--text) !important;
+        }
+        .choices__list--dropdown, .choices__list[aria-expanded] {
+            background: var(--card-bg) !important;
+            color: var(--text) !important;
+        }
+        .choices__item--selectable {
+            color: var(--text) !important;
+        }
+        .input-group > .choices {
+            flex: 1 1 auto;
+        }
+        .choices__list--multiple .choices__item {
+            background-color: #0d6efd !important;
+            color: #fff !important;
+            border: none;
+        }
+        body.darkmode .choices__list--multiple .choices__item {
+            background-color: #222b3a !important;
+            color: #e0e0e0 !important;
+        }
     </style>
 </head>
 <body>
+<button id="darkmodeToggle" class="btn btn-outline-secondary btn-darkmode" title="Darkmode umschalten" aria-pressed="false">
+    🌙
+</button>
 <div class="container">
     <h1 class="mb-4">TV Programm Suche (epg.pw)</h1>
     <form id="searchForm" class="mb-4">
         <label for="channelSelect" class="form-label">Wähle einen oder mehrere Kanäle:</label>
-        <select id="channelSelect" name="channels" multiple></select>
+        <div class="input-group">
+            <select id="channelSelect" name="channels" multiple></select>
+        </div>
         <button type="submit" class="btn btn-primary mt-3">Programm anzeigen</button>
     </form>
     <div id="results"></div>
@@ -429,6 +498,31 @@ form.addEventListener('submit', async function(e) {
     }
     resultsDiv.innerHTML = output || '<div class="alert alert-warning">Keine Ergebnisse gefunden.</div>';
 });
+</script>
+<script>
+// --- Darkmode Toggle ---
+const darkmodeBtn = document.getElementById('darkmodeToggle');
+const darkmodeBtn2 = document.getElementById('darkmodeToggle2');
+function setDarkmode(on) {
+    document.body.classList.toggle('darkmode', on);
+    darkmodeBtn.setAttribute('aria-pressed', on);
+    darkmodeBtn.innerHTML = on ? '☀️' : '🌙';
+    if (darkmodeBtn2) {
+        darkmodeBtn2.setAttribute('aria-pressed', on);
+        darkmodeBtn2.innerHTML = on ? '☀️' : '🌙';
+    }
+    localStorage.setItem('darkmode', on ? '1' : '0');
+}
+function toggleDarkmode() {
+    setDarkmode(!document.body.classList.contains('darkmode'));
+}
+darkmodeBtn.addEventListener('click', toggleDarkmode);
+if (darkmodeBtn2) darkmodeBtn2.addEventListener('click', toggleDarkmode);
+// Beim Laden: Darkmode aus LocalStorage übernehmen
+(function() {
+    const isDark = localStorage.getItem('darkmode') === '1';
+    setDarkmode(isDark);
+})();
 </script>
 </body>
 </html>
