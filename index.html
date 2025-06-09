@@ -57,13 +57,6 @@
             background: var(--card-bg) !important;
             color: var(--text) !important;
         }
-        .choices__list--dropdown, .choices__list[aria-expanded] {
-            background: var(--card-bg) !important;
-            color: var(--text) !important;
-        }
-        .choices__item--selectable {
-            color: var(--text) !important;
-        }
         .input-group > .choices {
             flex: 1 1 auto;
         }
@@ -73,6 +66,10 @@
             border: none;
         }
         body.darkmode .choices__list--multiple .choices__item {
+            background-color: #222b3a !important;
+            color: #e0e0e0 !important;
+        }
+        body.darkmode .choices__list--dropdown .choices__item {
             background-color: #222b3a !important;
             color: #e0e0e0 !important;
         }
