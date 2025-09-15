@@ -350,18 +350,39 @@ function getTodayDateStr() {
     return d.toISOString().slice(0,10).replace(/-/g, '');
 }
 
-function findCurrentAnd2015(programs) {
+function findCurrentAnd2015AndNext(programs) {
     const now = new Date();
     const target2015 = new Date(now);
     target2015.setHours(20, 15, 0, 0);
-    let current = null, at2015 = null;
-    for (const p of programs) {
+    let current = null, at2015 = null, next = null;
+    for (let i = 0; i < programs.length; i++) {
+        const p = programs[i];
         const start = new Date(p.start);
         const end = new Date(p.stop);
-        if (now >= start && now < end) current = p;
-        if (target2015 >= start && target2015 < end) at2015 = p;
+        if (now >= start && now < end) {
+            current = p;
+            if (i + 1 < programs.length) {
+                next = programs[i + 1];
+            }
+        }
+        if (target2015 >= start && target2015 < end) {
+            at2015 = p;
+        }
     }
-    return { current, at2015 };
+    // If after 20:15, find next after current
+    if (now.getHours() > 20 || (now.getHours() === 20 && now.getMinutes() > 15)) {
+        if (!next && current) {
+            // Find next after current
+            for (let i = 0; i < programs.length; i++) {
+                const start = new Date(programs[i].start);
+                if (start > new Date(current.stop)) {
+                    next = programs[i];
+                    break;
+                }
+            }
+        }
+    }
+    return { current, at2015, next };
 }
 
 // Multiselect initialisieren
@@ -490,7 +511,7 @@ form.addEventListener('submit', async function(e) {
             output += `<div class="alert alert-danger">Fehler beim Laden von ${channel?.name || epgId}: ${(err.message || err)}</div>`;
             continue;
         }
-        const { current, at2015 } = findCurrentAnd2015(data);
+        const { current, at2015, next } = findCurrentAnd2015AndNext(data);
         output += `
         <div class="card program-card">
             <div class="card-header bg-primary text-white">
@@ -499,6 +520,7 @@ form.addEventListener('submit', async function(e) {
             <div class="card-body">
                 <div><strong>Jetzt:</strong> ${current ? `${formatTime(current.start)} – ${formatTime(current.stop)}: ${current.title}` : 'Keine Sendung gefunden'}</div>
                 <div><strong>20:15 Uhr:</strong> ${at2015 ? `${formatTime(at2015.start)} – ${formatTime(at2015.stop)}: ${at2015.title}` : 'Keine Sendung gefunden'}</div>
+                ${(next && (new Date().getHours() > 20 || (new Date().getHours() === 20 && new Date().getMinutes() > 15))) ? `<div><strong>Als Nächstes:</strong> ${formatTime(next.start)} – ${formatTime(next.stop)}: ${next.title}</div>` : ''}
             </div>
         </div>
         `;
