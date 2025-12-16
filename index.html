@@ -475,33 +475,59 @@ form.addEventListener('submit', async function(e) {
             } else if (raw && Array.isArray(raw.epg_list)) {
                 // Mappe auf das alte Format: start, stop, title
                 data = raw.epg_list.map((item, idx, arr) => {
-                    // start_date: '20250607200000 +0000' => ISO
+                    // Robust parse for various start_date formats (e.g. '20250607200000 +0000' or '20250607200000+0000')
                     function parseDate(str) {
-                        // Nur das Datum, ohne +0000
-                        const base = str.split(' ')[0];
-                        const year = base.slice(0,4);
-                        const month = base.slice(4,6);
-                        const day = base.slice(6,8);
-                        const hour = base.slice(8,10);
-                        const min = base.slice(10,12);
-                        const sec = base.slice(12,14);
-                        return new Date(`${year}-${month}-${day}T${hour}:${min}:${sec}Z`).toISOString();
+                        try {
+                            if (!str) return null;
+                            // Try to extract 14-digit timestamp
+                            const m = str.match(/(\d{14})/);
+                            if (m) {
+                                const base = m[1];
+                                const year = base.slice(0,4);
+                                const month = base.slice(4,6);
+                                const day = base.slice(6,8);
+                                const hour = base.slice(8,10);
+                                const min = base.slice(10,12);
+                                const sec = base.slice(12,14);
+                                // timezone like +0200 or +0000
+                                const tzMatch = str.match(/([+-]\d{4})/);
+                                let tz = 'Z';
+                                if (tzMatch) {
+                                    const t = tzMatch[1];
+                                    tz = t.slice(0,3) + ':' + t.slice(3);
+                                }
+                                const iso = `${year}-${month}-${day}T${hour}:${min}:${sec}${tz}`;
+                                const d = new Date(iso);
+                                if (!isNaN(d)) return d.toISOString();
+                            }
+                            // Fallback: try Date.parse on the raw string
+                            const parsed = Date.parse(str);
+                            if (!isNaN(parsed)) return new Date(parsed).toISOString();
+                        } catch (e) {
+                            // ignore and return null below
+                        }
+                        return null;
                     }
+
                     const start = parseDate(item.start_date);
-                    // stop = start des nächsten Elements, oder +1h
-                    let stop;
+                    if (!start) return null; // skip entries we can't parse
+
+                    // stop = start of next element, or +1h
+                    let stop = null;
                     if (arr[idx+1]) {
                         stop = parseDate(arr[idx+1].start_date);
-                    } else {
+                    }
+                    if (!stop) {
                         stop = new Date(new Date(start).getTime() + 60*60*1000).toISOString();
                     }
+
                     return {
                         start,
                         stop,
                         title: item.title || '',
                         desc: item.desc || ''
                     };
-                });
+                }).filter(x => x !== null);
             } else if (raw && typeof raw === 'object' && raw[epgId]) {
                 data = raw[epgId];
             } else {
