@@ -83,14 +83,22 @@
         body.darkmode .choices__list--dropdown .choices__item--selectable.is-highlighted {
             background-color: #344055 !important;
         }
+        .header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
     </style>
 </head>
 <body>
-<button id="darkmodeToggle" class="btn btn-outline-secondary btn-darkmode" title="Darkmode umschalten" aria-pressed="false">
-    🌙
-</button>
 <div class="container">
-    <h1 class="mb-4">TV Programm Suche (epg.pw)</h1>
+    <div class="header-row">
+        <h1 class="mb-0">TV Programm Suche (epg.pw)</h1>
+        <button id="darkmodeToggle" class="btn btn-outline-secondary" title="Darkmode umschalten" aria-pressed="false">
+            🌙
+        </button>
+    </div>
     <form id="searchForm" class="mb-4">
         <label for="channelSelect" class="form-label">Wähle einen oder mehrere Kanäle:</label>
         <div class="input-group">
