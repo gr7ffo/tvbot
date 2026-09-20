@@ -393,6 +393,145 @@ function findCurrentAnd2015AndNext(programs) {
     return { current, at2015, next };
 }
 
+const FETCH_TIMEOUT_MS = 10000;
+const FETCH_MAX_RETRIES = 2;
+const FETCH_CONCURRENCY = 4;
+
+function parseEpgDate(str) {
+    try {
+        if (!str) return null;
+        const m = str.match(/(\d{14})/);
+        if (m) {
+            const base = m[1];
+            const year = base.slice(0,4);
+            const month = base.slice(4,6);
+            const day = base.slice(6,8);
+            const hour = base.slice(8,10);
+            const min = base.slice(10,12);
+            const sec = base.slice(12,14);
+            const tzMatch = str.match(/([+-]\d{4})/);
+            let tz = 'Z';
+            if (tzMatch) {
+                const t = tzMatch[1];
+                tz = t.slice(0,3) + ':' + t.slice(3);
+            }
+            const iso = `${year}-${month}-${day}T${hour}:${min}:${sec}${tz}`;
+            const d = new Date(iso);
+            if (!isNaN(d)) return d.toISOString();
+        }
+        const parsed = Date.parse(str);
+        if (!isNaN(parsed)) return new Date(parsed).toISOString();
+    } catch (e) {
+        // ignore and return null below
+    }
+    return null;
+}
+
+function normalizeEpgResponse(raw, epgId) {
+    if (Array.isArray(raw)) {
+        return raw;
+    } else if (raw && Array.isArray(raw.epg_list)) {
+        return raw.epg_list.map((item, idx, arr) => {
+            const start = parseEpgDate(item.start_date);
+            if (!start) return null;
+            let stop = null;
+            if (arr[idx + 1]) {
+                stop = parseEpgDate(arr[idx + 1].start_date);
+            }
+            if (!stop) {
+                stop = new Date(new Date(start).getTime() + 60 * 60 * 1000).toISOString();
+            }
+            return {
+                start,
+                stop,
+                title: item.title || '',
+                desc: item.desc || ''
+            };
+        }).filter(x => x !== null);
+    } else if (raw && typeof raw === 'object' && raw[epgId]) {
+        return raw[epgId];
+    }
+    throw new Error('API Antwort: ' + JSON.stringify(raw));
+}
+
+function getProgramCacheKey(epgId, dateStr) {
+    return `program-data:${dateStr}:${epgId}`;
+}
+
+function readProgramCache(key) {
+    try {
+        const raw = sessionStorage.getItem(key);
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        if (!Array.isArray(parsed)) return null;
+        return parsed;
+    } catch (e) {
+        return null;
+    }
+}
+
+function writeProgramCache(key, data) {
+    try {
+        sessionStorage.setItem(key, JSON.stringify(data));
+    } catch (e) {
+        // ignore cache write errors (private mode / quota)
+    }
+}
+
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function fetchChannelPrograms(epgId, dateStr) {
+    const cacheKey = getProgramCacheKey(epgId, dateStr);
+    const cached = readProgramCache(cacheKey);
+    if (cached) return cached;
+
+    const apiUrl = `https://epg.pw/api/epg.json?lang=de&date=${dateStr}&channel_id=${epgId}`;
+    let lastErr = null;
+
+    for (let attempt = 0; attempt <= FETCH_MAX_RETRIES; attempt++) {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+        try {
+            const resp = await fetch(apiUrl, {
+                signal: controller.signal,
+                headers: { 'Accept': 'application/json' }
+            });
+            if (!resp.ok) {
+                throw new Error(`HTTP error! status: ${resp.status}`);
+            }
+            const raw = await resp.json();
+            const data = normalizeEpgResponse(raw, epgId);
+            writeProgramCache(cacheKey, data);
+            return data;
+        } catch (err) {
+            lastErr = err;
+            if (attempt < FETCH_MAX_RETRIES) {
+                await sleep(300 * (attempt + 1));
+            }
+        } finally {
+            clearTimeout(timeoutId);
+        }
+    }
+
+    throw lastErr || new Error('Unbekannter Ladefehler');
+}
+
+async function runWithConcurrency(items, limit, worker) {
+    const results = new Array(items.length);
+    let idx = 0;
+    const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
+        while (true) {
+            const current = idx++;
+            if (current >= items.length) return;
+            results[current] = await worker(items[current]);
+        }
+    });
+    await Promise.all(workers);
+    return results;
+}
+
 // Multiselect initialisieren
 const channelSelect = document.getElementById('channelSelect');
 germanChannels.forEach(ch => {
@@ -454,95 +593,22 @@ form.addEventListener('submit', async function(e) {
     const dateStr = getTodayDateStr();    // Status-Anzeige hinzufügen
     resultsDiv.innerHTML = '<div class="alert alert-info">Programmdaten werden geladen...</div>';
     
-    // Alternativen CORS-Proxy entfernen, API direkt aufrufen
     let output = '';
-    for (const epgId of selected) {
+    const channelResults = await runWithConcurrency(selected, FETCH_CONCURRENCY, async (epgId) => {
         const channel = germanChannels.find(ch => ch.epgId == epgId);
-        const apiUrl = `https://epg.pw/api/epg.json?lang=de&date=${dateStr}&channel_id=${epgId}`;
-        const url = apiUrl; // Direkt ohne Proxy
-        let data;
         try {
             console.log(`Fetching data for ${channel?.name || epgId}...`);
-            // Timeout von 10 Sekunden für die Anfrage
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 10000);
-            const resp = await fetch(url, {
-                signal: controller.signal,
-                headers: {
-                    'Accept': 'application/json'
-                }
-            });
-            clearTimeout(timeoutId);
-            if (!resp.ok) {
-                throw new Error(`HTTP error! status: ${resp.status}`);
-            }
-            const raw = await resp.json();
-            // epg.pw liefert jetzt ein Objekt mit epg_list als Array
-            if (Array.isArray(raw)) {
-                data = raw;
-            } else if (raw && Array.isArray(raw.epg_list)) {
-                // Mappe auf das alte Format: start, stop, title
-                data = raw.epg_list.map((item, idx, arr) => {
-                    // Robust parse for various start_date formats (e.g. '20250607200000 +0000' or '20250607200000+0000')
-                    function parseDate(str) {
-                        try {
-                            if (!str) return null;
-                            // Try to extract 14-digit timestamp
-                            const m = str.match(/(\d{14})/);
-                            if (m) {
-                                const base = m[1];
-                                const year = base.slice(0,4);
-                                const month = base.slice(4,6);
-                                const day = base.slice(6,8);
-                                const hour = base.slice(8,10);
-                                const min = base.slice(10,12);
-                                const sec = base.slice(12,14);
-                                // timezone like +0200 or +0000
-                                const tzMatch = str.match(/([+-]\d{4})/);
-                                let tz = 'Z';
-                                if (tzMatch) {
-                                    const t = tzMatch[1];
-                                    tz = t.slice(0,3) + ':' + t.slice(3);
-                                }
-                                const iso = `${year}-${month}-${day}T${hour}:${min}:${sec}${tz}`;
-                                const d = new Date(iso);
-                                if (!isNaN(d)) return d.toISOString();
-                            }
-                            // Fallback: try Date.parse on the raw string
-                            const parsed = Date.parse(str);
-                            if (!isNaN(parsed)) return new Date(parsed).toISOString();
-                        } catch (e) {
-                            // ignore and return null below
-                        }
-                        return null;
-                    }
-
-                    const start = parseDate(item.start_date);
-                    if (!start) return null; // skip entries we can't parse
-
-                    // stop = start of next element, or +1h
-                    let stop = null;
-                    if (arr[idx+1]) {
-                        stop = parseDate(arr[idx+1].start_date);
-                    }
-                    if (!stop) {
-                        stop = new Date(new Date(start).getTime() + 60*60*1000).toISOString();
-                    }
-
-                    return {
-                        start,
-                        stop,
-                        title: item.title || '',
-                        desc: item.desc || ''
-                    };
-                }).filter(x => x !== null);
-            } else if (raw && typeof raw === 'object' && raw[epgId]) {
-                data = raw[epgId];
-            } else {
-                throw new Error('API Antwort: ' + JSON.stringify(raw));
-            }
+            const data = await fetchChannelPrograms(epgId, dateStr);
+            return { epgId, channel, data, error: null };
         } catch (err) {
-            output += `<div class="alert alert-danger">Fehler beim Laden von ${channel?.name || epgId}: ${(err.message || err)}</div>`;
+            return { epgId, channel, data: null, error: err };
+        }
+    });
+
+    for (const result of channelResults) {
+        const { epgId, channel, data, error } = result;
+        if (error) {
+            output += `<div class="alert alert-danger">Fehler beim Laden von ${channel?.name || epgId}: ${(error.message || error)}</div>`;
             continue;
         }
         const { current, at2015, next } = findCurrentAnd2015AndNext(data);
