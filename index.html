@@ -397,6 +397,21 @@ const FETCH_TIMEOUT_MS = 10000;
 const FETCH_MAX_RETRIES = 2;
 const FETCH_CONCURRENCY = 4;
 
+class HttpStatusError extends Error {
+    constructor(status) {
+        super(`HTTP error! status: ${status}`);
+        this.name = 'HttpStatusError';
+        this.status = status;
+    }
+}
+
+class ResponseNormalizationError extends Error {
+    constructor(message) {
+        super(message);
+        this.name = 'ResponseNormalizationError';
+    }
+}
+
 function parseEpgDate(str) {
     try {
         if (!str) return null;
@@ -451,7 +466,7 @@ function normalizeEpgResponse(raw, epgId) {
     } else if (raw && typeof raw === 'object' && raw[epgId]) {
         return raw[epgId];
     }
-    throw new Error('API Antwort: ' + JSON.stringify(raw));
+    throw new ResponseNormalizationError('API Antwort: ' + JSON.stringify(raw));
 }
 
 function getProgramCacheKey(epgId, dateStr) {
@@ -482,6 +497,16 @@ function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+function isTransientFetchError(err) {
+    if (!err) return false;
+    if (err.name === 'AbortError') return true;
+    if (err instanceof HttpStatusError) {
+        return err.status === 429 || err.status >= 500;
+    }
+    if (err instanceof TypeError) return true;
+    return false;
+}
+
 async function fetchChannelPrograms(epgId, dateStr) {
     const cacheKey = getProgramCacheKey(epgId, dateStr);
     const cached = readProgramCache(cacheKey);
@@ -499,7 +524,7 @@ async function fetchChannelPrograms(epgId, dateStr) {
                 headers: { 'Accept': 'application/json' }
             });
             if (!resp.ok) {
-                throw new Error(`HTTP error! status: ${resp.status}`);
+                throw new HttpStatusError(resp.status);
             }
             const raw = await resp.json();
             const data = normalizeEpgResponse(raw, epgId);
@@ -507,8 +532,10 @@ async function fetchChannelPrograms(epgId, dateStr) {
             return data;
         } catch (err) {
             lastErr = err;
-            if (attempt < FETCH_MAX_RETRIES) {
+            if (attempt < FETCH_MAX_RETRIES && isTransientFetchError(err)) {
                 await sleep(300 * (attempt + 1));
+            } else {
+                throw err;
             }
         } finally {
             clearTimeout(timeoutId);
